@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Mapbox Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.js"></script>
+    <script>
+        // 你的 Mapbox Access Token
+        mapboxgl.accessToken = 'pk.eyJ1IjoiYjlicWc4cGtlZyIsImEiOiJjbHNhbGgwcW8wNTZvMmpscG9ra2l6bWp5In0.k0t6RRYvXxDHlGTEbRISmg';
+
+        // 初始化地图
+        var map = new mapboxgl.Map({
+            container: 'map', // 地图容器的 id
+            style: 'mapbox://styles/mapbox/dark-v11', // 地图样式
+            center: [120.20000, 30.26667], // 地图中心的经纬度
+            zoom: 9 // 缩放级别
+        });
+
+        // 解析CSV文件并添加数据到地图
+        fetch('sparse_points_modified.csv')
+            .then(response => response.text())
+            .then(data => {
+                Papa.parse(data, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function (results) {
+                        var coordinates = results.data;
+
+                        var geojson = {
+                            type: 'FeatureCollection',
+                            features: coordinates.map(function (row) {
+                                return {
+                                    type: 'Feature',
+                                    geometry: {
+                                        type: 'Point',
+                                        coordinates: [row.lng, row.lat]
+                                    },
+                                    properties: {
+                                        category: row.categories
+                                    }
+                                };
+                            })
+                        };
+
+                        // 添加数据源
+                        map.on('load', function () {
+                            map.addSource('points', {
+                                type: 'geojson',
+                                data: geojson
+                            });
+
+                            // 添加CircleLayer
+                            map.addLayer({
+                                id: 'points',
+                                type: 'circle',
+                                source: 'points',
+                                paint: {
+                                    'circle-radius': {
+                                        base: 1.75,
+                                        stops: [
+                                            [12, 2],
+                                            [22, 180]
+                                        ]
+                                    },
+                                    'circle-color': [
+                                        'match',
+                                        ['get', 'category'],
+                                        0, 'green',
+                                        1, 'yellow',
+                                        2, 'red',
+                                        'green'
+                                    ],
+                                    'circle-opacity': 0.6
+                                }
+                            });
+                        });
+                    }
+                });
+            })
+            .catch(error => console.error('Error loading the CSV file:', error));
+    </script>
+</body>
+
+</html>
